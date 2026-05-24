@@ -2,8 +2,6 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include "sensor_msgs/msg/joy.hpp"
 
-#include <iostream>
-
 class ControllerNode : public rclcpp::Node{
   private:
     rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_subscription_; 
@@ -13,12 +11,12 @@ class ControllerNode : public rclcpp::Node{
       if(msg->axes.size() >= 4){ 
         twist_publish.linear.x = msg->axes.at(1);
         twist_publish.angular.z = msg->axes.at(3);
-        RCLCPP_INFO(this->get_logger(), "Linear: %.2f Angular Z: %.2f", msg->axes.at(1), msg->axes.at(3));
+        // RCLCPP_INFO(this->get_logger(), "Linear: %.2f Angular Z: %.2f", msg->axes.at(1), msg->axes.at(3)); // DEBUGGING
       }
       else{
         twist_publish.linear.x = 0.0;
         twist_publish.angular.z = 0.0;
-        RCLCPP_INFO(this->get_logger(), "Controller Error");
+        RCLCPP_INFO(this->get_logger(), "Controller Error"); 
       }
       twist_publisher_->publish(twist_publish);
     }
