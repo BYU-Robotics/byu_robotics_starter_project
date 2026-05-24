@@ -40,7 +40,7 @@ source install/setup.bash
 ### 2. Launch the Node Configuration
 You can launch this node alongside its automatic background hardware driver using the provided launch script:
 ```bash
-ros2 launch controller_cpp launch.py
+ros2 launch controller_cpp teleop_launch.py
 ```
 
 ### 3. Verify the Outputs

@@ -16,16 +16,16 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
 
-add_executable(joystick_node src/joystick_node.cpp)
-ament_target_dependencies(joystick_node rclcpp sensor_msgs geometry_msgs)
+add_executable(teleop src/teleop.cpp)
+ament_target_dependencies(teleop rclcpp sensor_msgs geometry_msgs)
 
 
-target_include_directories(joystick_node PUBLIC
+target_include_directories(teleop PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
-target_compile_features(joystick_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_compile_features(teleop PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 
-install(TARGETS joystick_node
+install(TARGETS teleop
   DESTINATION lib/${PROJECT_NAME})
 
   # Install the launch directory so ROS 2 can find your launch scripts
