@@ -40,31 +40,36 @@ void setup() {
 }
 
 void loop() {
-
+  // publish all sensor data every loop
   publish_imu_data();
+  
 }
 void microros_init(){
+  // Define how data will be transmitted
   set_microros_serial_transports(Serial);
   allocator = rcl_get_default_allocator();
 
+  // Initializes node
   rclc_support_init(&support, 0, NULL, &allocator);
   rclc_node_init_default(&node, "boat_controller_node", "", &support);
   
-  // Create subscriber for cmd_vel topic (commented out for now, as we are only publishing IMU data)
+  // Create subscriber for cmd_vel topic
   rclc_subscription_init_default(
     &subscriber,
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist),
     "cmd_vel");
   
+  // Create executor to run a function when recieving a message
   rclc_executor_init(&executor, &support.context, 1, &allocator);
   rclc_executor_add_subscription(&executor, &subscriber, &twist_msg, &process_twist, ON_NEW_DATA);
 
+  // Create publisher for boat_imu topic
   rclc_publisher_init_best_effort(
       &publisher,
       &node,
       ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Imu),
-    "boat_imu_publisher");
+    "boat_imu");
 }
 void mpu_init(){
   while(!mpu1.begin()){
@@ -75,6 +80,7 @@ void mpu_init(){
   mpu1.setAccelerometerRange(MPU6050_RANGE_8_G);
   mpu1.setFilterBandwidth(MPU6050_BAND_44_HZ);
 
+  // initialize second imu if applicable
   if(MPU2_ACTIVE){
     while(!mpu2.begin()){
       Serial.println("Failed to Find MPU6050 - 2 Chip");
@@ -86,10 +92,12 @@ void mpu_init(){
   } 
 }
 void thruster_init(){
+  // Initialize thruster pins
   pinMode(LEFT_THRUSTER_PIN,OUTPUT);
   pinMode(RIGHT_THRUSTER_PIN,OUTPUT);
 }
 void publish_imu_data(){
+  // Publish data from one or two imus
   sensors_event_t a1, g1, temp1;
   mpu1.getEvent(&a1, &g1, &temp1);
 
