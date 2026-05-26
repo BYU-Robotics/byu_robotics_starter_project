@@ -8,15 +8,15 @@
 #include <sensor_msgs/msg/imu.h>
 #include <geometry_msgs/msg/twist.h>
 #include "main.h"
-
+#include <algorithm>
 // PIN SETUP ON MICROCONTROLLER
-uint8_t LEFT_THRUSTER_PIN = 9;
-uint8_t RIGHT_THRUSTER_PIN = 10;
+uint8_t LEFT_THRUSTER_PIN = 12;
+uint8_t RIGHT_THRUSTER_PIN = 13;
 
 // SETTINGS
 int REVERSE_MOTOR_LEFT = 1;
 int REVERSE_MOTOR_RIGHT = 1;
-bool MPU2_ACTIVE = false;
+bool MPU2_ACTIVE = true;
 
 // Variables
 Adafruit_MPU6050 mpu1;
@@ -34,17 +34,23 @@ geometry_msgs__msg__Twist twist_msg;
 void setup() {
   Serial.begin(115200);
 
-  microros_init();
   mpu_init();
+  microros_init();
   thruster_init();
 }
 
 void loop() {
   // publish all sensor data every loop
   publish_imu_data();
+  rclc_executor_spin_some(&executor, RCL_MS_TO_NS(0));
+  delay(20);
   
 }
 void microros_init(){
+  // imu_msg.header.frame_id.data = (char*)"base_imu_link";
+  // imu_msg.header.frame_id.size = strlen(imu_msg.header.frame_id.data);
+  // imu_msg.header.frame_id.capacity = imu_msg.header.frame_id.size + 1;
+
   // Define how data will be transmitted
   set_microros_serial_transports(Serial);
   allocator = rcl_get_default_allocator();
@@ -72,24 +78,21 @@ void microros_init(){
     "boat_imu");
 }
 void mpu_init(){
-  while(!mpu1.begin()){
-    Serial.println("Failed to Find MPU6050 - 1 Chip");
+  while(!mpu1.begin(0x68)){
     delay(1000);
   }
-  Serial.println("Found MPU6050-1");
   mpu1.setAccelerometerRange(MPU6050_RANGE_8_G);
   mpu1.setFilterBandwidth(MPU6050_BAND_44_HZ);
 
   // initialize second imu if applicable
   if(MPU2_ACTIVE){
-    while(!mpu2.begin()){
-      Serial.println("Failed to Find MPU6050 - 2 Chip");
+    while(!mpu2.begin(0x69)){
       delay(1000);
     }
-    Serial.println("Found MPU6050 - 2");
     mpu2.setAccelerometerRange(MPU6050_RANGE_8_G);
     mpu2.setFilterBandwidth(MPU6050_BAND_44_HZ);
   } 
+
 }
 void thruster_init(){
   // Initialize thruster pins
@@ -126,9 +129,11 @@ void publish_imu_data(){
   
 
   auto return_Value = rcl_publish(&publisher, &imu_msg, NULL);
+
 }
 
 void process_twist(const void * msgin){
+  return;
   const geometry_msgs__msg__Twist * msg = (const geometry_msgs__msg__Twist *)msgin;
   // Process the received Twist message (e.g., control the boat based on cmd_vel)
 
@@ -141,8 +146,8 @@ void process_twist(const void * msgin){
   int normalize_linear = 255 * msg->linear.x;
   int normalize_angular = 255 * msg->angular.z;
 
-  int left_thrust = REVERSE_MOTOR_LEFT * (normalize_linear + normalize_angular);
-  int right_thrust = REVERSE_MOTOR_RIGHT * (normalize_linear - normalize_angular);
+  int left_thrust = constrain(REVERSE_MOTOR_LEFT * (normalize_linear + normalize_angular),-255, 255);
+  int right_thrust = constrain(REVERSE_MOTOR_RIGHT * (normalize_linear - normalize_angular),-255, 255);
 
   analogWrite(LEFT_THRUSTER_PIN,left_thrust);
   analogWrite(RIGHT_THRUSTER_PIN,right_thrust);
