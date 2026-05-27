@@ -31,6 +31,9 @@ rcl_node_t node;
 sensor_msgs__msg__Imu imu_msg;
 geometry_msgs__msg__Twist twist_msg;
 
+bool imu_one_active = false;
+bool imu_two_active = false;
+
 void setup() {
   Serial.begin(115200);
 
@@ -47,9 +50,6 @@ void loop() {
   
 }
 void microros_init(){
-  // imu_msg.header.frame_id.data = (char*)"base_imu_link";
-  // imu_msg.header.frame_id.size = strlen(imu_msg.header.frame_id.data);
-  // imu_msg.header.frame_id.capacity = imu_msg.header.frame_id.size + 1;
 
   // Define how data will be transmitted
   set_microros_serial_transports(Serial);
@@ -78,17 +78,16 @@ void microros_init(){
     "boat_imu");
 }
 void mpu_init(){
-  while(!mpu1.begin(0x68)){
-    delay(1000);
+  // First IMU at addres 0x68, AD0 pin is LOW
+  if(mpu1.begin(0x68)){
+    imu_one_active = true;
+    mpu1.setAccelerometerRange(MPU6050_RANGE_8_G);
+    mpu1.setFilterBandwidth(MPU6050_BAND_44_HZ);
   }
-  mpu1.setAccelerometerRange(MPU6050_RANGE_8_G);
-  mpu1.setFilterBandwidth(MPU6050_BAND_44_HZ);
-
-  // initialize second imu if applicable
-  if(MPU2_ACTIVE){
-    while(!mpu2.begin(0x69)){
-      delay(1000);
-    }
+  
+  // Second IMU at addres 0x69, AD0 pin is HIGH
+  if(mpu2.begin(0x69)){
+    imu_two_active = true;
     mpu2.setAccelerometerRange(MPU6050_RANGE_8_G);
     mpu2.setFilterBandwidth(MPU6050_BAND_44_HZ);
   } 
@@ -102,13 +101,13 @@ void thruster_init(){
 void publish_imu_data(){
   // Publish data from one or two imus
   sensors_event_t a1, g1, temp1;
-  mpu1.getEvent(&a1, &g1, &temp1);
-
-  if(MPU2_ACTIVE){
-    sensors_event_t a2, g2, temp2;
+  sensors_event_t a2, g2, temp2;
+  if(imu_one_active && imu_two_active){
+    
+    mpu1.getEvent(&a1, &g1, &temp1);
     mpu2.getEvent(&a2, &g2, &temp2);
 
-    // Averaging two MPUS
+    // Averaging two IMUs for more accurate data, if both are active
     imu_msg.linear_acceleration.x = (a1.acceleration.x + a2.acceleration.x)/2;
     imu_msg.linear_acceleration.y = (a1.acceleration.y + a2.acceleration.y)/2;
     imu_msg.linear_acceleration.z = (a1.acceleration.z + a2.acceleration.z)/2;
@@ -117,7 +116,8 @@ void publish_imu_data(){
     imu_msg.angular_velocity.y = (g1.gyro.y + g2.gyro.y)/2;
     imu_msg.angular_velocity.z = (g1.gyro.z + g2.gyro.z)/2;
   }
-  else{
+  else if(imu_one_active){
+    mpu1.getEvent(&a1, &g1, &temp1);
     imu_msg.linear_acceleration.x = (a1.acceleration.x);
     imu_msg.linear_acceleration.y = (a1.acceleration.y);
     imu_msg.linear_acceleration.z = (a1.acceleration.z);
@@ -125,6 +125,19 @@ void publish_imu_data(){
     imu_msg.angular_velocity.x = (g1.gyro.x);
     imu_msg.angular_velocity.y = (g1.gyro.y);
     imu_msg.angular_velocity.z = (g1.gyro.z);
+  }
+  else if(imu_two_active){
+    mpu2.getEvent(&a2, &g2, &temp2);
+    imu_msg.linear_acceleration.x = (a2.acceleration.x);
+    imu_msg.linear_acceleration.y = (a2.acceleration.y);
+    imu_msg.linear_acceleration.z = (a2.acceleration.z);
+
+    imu_msg.angular_velocity.x = (g2.gyro.x);
+    imu_msg.angular_velocity.y = (g2.gyro.y);
+    imu_msg.angular_velocity.z = (g2.gyro.z);
+  }
+  else{
+    return;
   }
   
 
