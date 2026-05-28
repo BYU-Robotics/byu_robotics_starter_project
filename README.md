@@ -1,4 +1,4 @@
-## Starter project code and documention for the BYU Robotics Team
+# Starter project code and documention for the BYU Robotics Team
 
 ### Basic ROS 2 Commands
 ```bash
