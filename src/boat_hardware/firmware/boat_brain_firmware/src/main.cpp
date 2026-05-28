@@ -10,13 +10,20 @@
 #include "main.h"
 #include <algorithm>
 // PIN SETUP ON MICROCONTROLLER
-uint8_t LEFT_THRUSTER_PIN = 12;
-uint8_t RIGHT_THRUSTER_PIN = 13;
+uint8_t LEFT_THRUSTER_PIN_A = 12;
+uint8_t LEFT_THRUSTER_PIN_B = 13;
+uint8_t RIGHT_THRUSTER_PIN_A = 14;
+uint8_t RIGHT_THRUSTER_PIN_B = 15;
+
+uint8_t LEFT_THRUSTER_ENABLE_PIN = 25;
+uint8_t RIGHT_THRUSTER_ENABLE_PIN = 26;
+
 
 // SETTINGS
 int REVERSE_MOTOR_LEFT = 1;
 int REVERSE_MOTOR_RIGHT = 1;
 bool MPU2_ACTIVE = true;
+bool using_L298N = true;
 
 // Variables
 Adafruit_MPU6050 mpu1;
@@ -33,6 +40,10 @@ geometry_msgs__msg__Twist twist_msg;
 
 bool imu_one_active = false;
 bool imu_two_active = false;
+
+MotorStates motor_state;
+
+
 
 void setup() {
   Serial.begin(115200);
@@ -95,8 +106,12 @@ void mpu_init(){
 }
 void thruster_init(){
   // Initialize thruster pins
-  pinMode(LEFT_THRUSTER_PIN,OUTPUT);
-  pinMode(RIGHT_THRUSTER_PIN,OUTPUT);
+  pinMode(LEFT_THRUSTER_PIN_A,OUTPUT);
+  pinMode(LEFT_THRUSTER_PIN_B,OUTPUT);
+  pinMode(RIGHT_THRUSTER_PIN_A,OUTPUT);
+  pinMode(RIGHT_THRUSTER_PIN_B,OUTPUT);
+
+  motor_state = DRIVE;
 }
 void publish_imu_data(){
   // Publish data from one or two imus
@@ -146,23 +161,63 @@ void publish_imu_data(){
 }
 
 void process_twist(const void * msgin){
-  return;
   const geometry_msgs__msg__Twist * msg = (const geometry_msgs__msg__Twist *)msgin;
   // Process the received Twist message (e.g., control the boat based on cmd_vel)
-
-  // For Debugging
-  // Serial.print("Received cmd_vel - Linear X: ");
-  // Serial.print(msg->linear.x);
-  // Serial.print(", Angular Z: ");
-  // Serial.println(msg->angular.z);
   
   int normalize_linear = 255 * msg->linear.x;
   int normalize_angular = 255 * msg->angular.z;
 
-  int left_thrust = constrain(REVERSE_MOTOR_LEFT * (normalize_linear + normalize_angular),-255, 255);
-  int right_thrust = constrain(REVERSE_MOTOR_RIGHT * (normalize_linear - normalize_angular),-255, 255);
+  int left_thrust = normalize_linear + normalize_angular;
+  int right_thrust = normalize_linear - normalize_angular;
 
-  analogWrite(LEFT_THRUSTER_PIN,left_thrust);
-  analogWrite(RIGHT_THRUSTER_PIN,right_thrust);
+  int abs_max_thrust = std::max(abs(left_thrust), abs(right_thrust));
 
+  if(abs_max_thrust > 255){
+    left_thrust = ((float)left_thrust/(float)abs_max_thrust)*255;
+    right_thrust = ((float)right_thrust/(float)abs_max_thrust)*255;
+  }
+
+  
+
+  
+  if(using_L298N){
+    switch(motor_state){
+      case(DRIVE):
+        analogWrite(LEFT_THRUSTER_ENABLE_PIN, abs(left_thrust));
+        digitalWrite(LEFT_THRUSTER_PIN_A, left_thrust >= 0 ? LOW : HIGH);
+        digitalWrite(LEFT_THRUSTER_PIN_B, left_thrust >= 0 ? HIGH : LOW);
+        analogWrite(RIGHT_THRUSTER_ENABLE_PIN, abs(right_thrust));
+        digitalWrite(RIGHT_THRUSTER_PIN_A, right_thrust >= 0 ? LOW : HIGH);
+        digitalWrite(RIGHT_THRUSTER_PIN_B, right_thrust >= 0 ? HIGH : LOW);
+        break;
+      case(STOP):
+        analogWrite(LEFT_THRUSTER_ENABLE_PIN, 0);
+        analogWrite(RIGHT_THRUSTER_ENABLE_PIN, 0);
+        digitalWrite(LEFT_THRUSTER_PIN_A, LOW);
+        digitalWrite(LEFT_THRUSTER_PIN_B, LOW);
+        digitalWrite(RIGHT_THRUSTER_PIN_A, LOW);
+        digitalWrite(RIGHT_THRUSTER_PIN_B, LOW);
+        break;
+      default:
+        break;
+    }
+  }
+  else{
+    switch(motor_state){
+      case(DRIVE):
+        analogWrite(LEFT_THRUSTER_PIN_A, constrain(left_thrust,0,255));
+        analogWrite(LEFT_THRUSTER_PIN_B, constrain(-left_thrust,0,255));
+        analogWrite(RIGHT_THRUSTER_PIN_A, constrain(right_thrust,0,255));
+        analogWrite(RIGHT_THRUSTER_PIN_B, constrain(-right_thrust,0,255));
+        break;
+      case(STOP):
+        analogWrite(LEFT_THRUSTER_PIN_A, 0);
+        analogWrite(LEFT_THRUSTER_PIN_B, 0);
+        analogWrite(RIGHT_THRUSTER_PIN_A, 0);
+        analogWrite(RIGHT_THRUSTER_PIN_B, 0);
+        break;
+      default:
+        break;
+    }
+  }
 }
