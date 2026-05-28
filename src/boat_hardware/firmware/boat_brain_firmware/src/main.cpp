@@ -110,6 +110,8 @@ void thruster_init(){
   pinMode(LEFT_THRUSTER_PIN_B,OUTPUT);
   pinMode(RIGHT_THRUSTER_PIN_A,OUTPUT);
   pinMode(RIGHT_THRUSTER_PIN_B,OUTPUT);
+  pinMode(LEFT_THRUSTER_ENABLE_PIN,OUTPUT);
+  pinMode(RIGHT_THRUSTER_ENABLE_PIN,OUTPUT);
 
   motor_state = DRIVE;
 }
@@ -176,9 +178,6 @@ void process_twist(const void * msgin){
     left_thrust = ((float)left_thrust/(float)abs_max_thrust)*255;
     right_thrust = ((float)right_thrust/(float)abs_max_thrust)*255;
   }
-
-  
-
   
   if(using_L298N){
     switch(motor_state){
