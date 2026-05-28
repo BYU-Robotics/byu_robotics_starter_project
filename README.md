@@ -29,7 +29,7 @@ source install/local_setup.bash
 ros2 run my_package my_node
 ```
 
-# Building the codebase
+## Building the codebase
 Inside the main program, we want to run several packages at the same time and can run them all using the launch package
 ```bash
 # To run the launch file
