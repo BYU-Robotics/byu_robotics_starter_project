@@ -65,7 +65,7 @@ void loop() {
   // Add timer to check if still reciving messages from ROS2 and if not, stop the boat for safety
 }
 void microros_init(){
-
+  rmw_uros_sync_session(1000); // Synchronize with the micro-ROS agent, with a timeout of 1000 milliseconds (1 second)
   // Define how data will be transmitted
   set_microros_serial_transports(Serial);
   allocator = rcl_get_default_allocator();
@@ -143,7 +143,6 @@ void publish_imu_data(){
   filter.getQuaternion(qx, qy, qz, qw);
 
 
-  // TODO add header to message with timestamp and frame id, maybe sequence number if needed
   // Fill and publish the message
   quaternion_msg.orientation.x = qx;
   quaternion_msg.orientation.y = qy;
@@ -155,6 +154,14 @@ void publish_imu_data(){
   quaternion_msg.angular_velocity.x = gx;
   quaternion_msg.angular_velocity.y = gy;
   quaternion_msg.angular_velocity.z = gz;
+
+  // Fill in the header with timestamp and frame id
+  int64_t time_ns = rmw_uros_epoch_nanos();
+  quaternion_msg.header.stamp.sec = time_ns / 1000000000;
+  quaternion_msg.header.stamp.nanosec = time_ns % 1000000000;
+  quaternion_msg.header.frame_id.data = (char*)"imu_link"; // TODO Change frame id to something more appropriate if needed
+  quaternion_msg.header.frame_id.size = strlen(quaternion_msg.header.frame_id.data);
+  quaternion_msg.header.frame_id.capacity = quaternion_msg.header.frame_id.size + 1;
   auto return_Value = rcl_publish(&publisher, &quaternion_msg, NULL);
 }
 
