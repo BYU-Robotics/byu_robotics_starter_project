@@ -9,21 +9,17 @@
 #include <geometry_msgs/msg/twist.h>
 #include "main.h"
 #include <algorithm>
+
 // PIN SETUP ON MICROCONTROLLER
 uint8_t LEFT_THRUSTER_PIN_A = 12;
 uint8_t LEFT_THRUSTER_PIN_B = 13;
 uint8_t RIGHT_THRUSTER_PIN_A = 14;
 uint8_t RIGHT_THRUSTER_PIN_B = 15;
 
-uint8_t LEFT_THRUSTER_ENABLE_PIN = 25;
-uint8_t RIGHT_THRUSTER_ENABLE_PIN = 26;
-
-
 // SETTINGS
 int REVERSE_MOTOR_LEFT = 1;
 int REVERSE_MOTOR_RIGHT = 1;
 bool MPU2_ACTIVE = true;
-bool using_L298N = true;
 
 // Variables
 Adafruit_MPU6050 mpu1;
@@ -42,8 +38,6 @@ bool imu_one_active = false;
 bool imu_two_active = false;
 
 MotorStates motor_state;
-
-
 
 void setup() {
   Serial.begin(115200);
@@ -110,9 +104,6 @@ void thruster_init(){
   pinMode(LEFT_THRUSTER_PIN_B,OUTPUT);
   pinMode(RIGHT_THRUSTER_PIN_A,OUTPUT);
   pinMode(RIGHT_THRUSTER_PIN_B,OUTPUT);
-  pinMode(LEFT_THRUSTER_ENABLE_PIN,OUTPUT);
-  pinMode(RIGHT_THRUSTER_ENABLE_PIN,OUTPUT);
-
   motor_state = DRIVE;
 }
 void publish_imu_data(){
@@ -179,44 +170,21 @@ void process_twist(const void * msgin){
     right_thrust = ((float)right_thrust/(float)abs_max_thrust)*255;
   }
   
-  if(using_L298N){
-    switch(motor_state){
-      case(DRIVE):
-        analogWrite(LEFT_THRUSTER_ENABLE_PIN, abs(left_thrust));
-        digitalWrite(LEFT_THRUSTER_PIN_A, left_thrust >= 0 ? LOW : HIGH);
-        digitalWrite(LEFT_THRUSTER_PIN_B, left_thrust >= 0 ? HIGH : LOW);
-        analogWrite(RIGHT_THRUSTER_ENABLE_PIN, abs(right_thrust));
-        digitalWrite(RIGHT_THRUSTER_PIN_A, right_thrust >= 0 ? LOW : HIGH);
-        digitalWrite(RIGHT_THRUSTER_PIN_B, right_thrust >= 0 ? HIGH : LOW);
-        break;
-      case(STOP):
-        analogWrite(LEFT_THRUSTER_ENABLE_PIN, 0);
-        analogWrite(RIGHT_THRUSTER_ENABLE_PIN, 0);
-        digitalWrite(LEFT_THRUSTER_PIN_A, LOW);
-        digitalWrite(LEFT_THRUSTER_PIN_B, LOW);
-        digitalWrite(RIGHT_THRUSTER_PIN_A, LOW);
-        digitalWrite(RIGHT_THRUSTER_PIN_B, LOW);
-        break;
-      default:
-        break;
-    }
-  }
-  else{
-    switch(motor_state){
-      case(DRIVE):
-        analogWrite(LEFT_THRUSTER_PIN_A, constrain(left_thrust,0,255));
-        analogWrite(LEFT_THRUSTER_PIN_B, constrain(-left_thrust,0,255));
-        analogWrite(RIGHT_THRUSTER_PIN_A, constrain(right_thrust,0,255));
-        analogWrite(RIGHT_THRUSTER_PIN_B, constrain(-right_thrust,0,255));
-        break;
-      case(STOP):
-        analogWrite(LEFT_THRUSTER_PIN_A, 0);
-        analogWrite(LEFT_THRUSTER_PIN_B, 0);
-        analogWrite(RIGHT_THRUSTER_PIN_A, 0);
-        analogWrite(RIGHT_THRUSTER_PIN_B, 0);
-        break;
-      default:
-        break;
-    }
+  
+  switch(motor_state){
+    case(DRIVE):
+      analogWrite(LEFT_THRUSTER_PIN_A, constrain(left_thrust,0,255));
+      analogWrite(LEFT_THRUSTER_PIN_B, constrain(-left_thrust,0,255));
+      analogWrite(RIGHT_THRUSTER_PIN_A, constrain(right_thrust,0,255));
+      analogWrite(RIGHT_THRUSTER_PIN_B, constrain(-right_thrust,0,255));
+      break;
+    case(STOP):
+      analogWrite(LEFT_THRUSTER_PIN_A, 0);
+      analogWrite(LEFT_THRUSTER_PIN_B, 0);
+      analogWrite(RIGHT_THRUSTER_PIN_A, 0);
+      analogWrite(RIGHT_THRUSTER_PIN_B, 0);
+      break;
+    default:
+      break;
   }
 }
