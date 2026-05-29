@@ -201,12 +201,10 @@ void get_imu_data(float& ax, float& ay, float& az, float& gx, float& gy, float& 
   // Get data from one or two imus
   sensors_event_t a1, g1, temp1;
   sensors_event_t a2, g2, temp2;
+  bool mpu1_ok = imu_one_active && mpu1.getEvent(&a1, &g1, &temp1);
+  bool mpu2_ok = imu_two_active && mpu2.getEvent(&a2, &g2, &temp2);
 
-  // TODO Implement recheck to see if both IMUs are still working, if not switch to only use the one that is working, and if both are not working, send message to main system and stop the boat for safety
-  if(imu_one_active && imu_two_active){
-    mpu1.getEvent(&a1, &g1, &temp1);
-    mpu2.getEvent(&a2, &g2, &temp2);
-
+  if(mpu1_ok && mpu2_ok){    
     // Averaging two IMUs for more accurate data, if both are active
     ax = (a1.acceleration.x + a2.acceleration.x)/2;
     ay = (a1.acceleration.y + a2.acceleration.y)/2;
@@ -216,7 +214,7 @@ void get_imu_data(float& ax, float& ay, float& az, float& gx, float& gy, float& 
     gy = (g1.gyro.y + g2.gyro.y)/2;
     gz = (g1.gyro.z + g2.gyro.z)/2;
   }
-  else if(imu_one_active){
+  else if(mpu1_ok){
     mpu1.getEvent(&a1, &g1, &temp1);
     ax = (a1.acceleration.x);
     ay = (a1.acceleration.y);
@@ -226,7 +224,7 @@ void get_imu_data(float& ax, float& ay, float& az, float& gx, float& gy, float& 
     gy = (g1.gyro.y);
     gz = (g1.gyro.z);
   }
-  else if(imu_two_active){
+  else if(mpu2_ok){
     mpu2.getEvent(&a2, &g2, &temp2);
     ax = (a2.acceleration.x);
     ay = (a2.acceleration.y);
@@ -235,6 +233,17 @@ void get_imu_data(float& ax, float& ay, float& az, float& gx, float& gy, float& 
     gx = (g2.gyro.x);
     gy = (g2.gyro.y);
     gz = (g2.gyro.z);
+  }
+  else{
+    // If both IMUs are not working, send message to main system and stop the boat for safety
+    ax = 0;
+    ay = 0;
+    az = 0;
+    
+    gx = 0;
+    gy = 0;
+    gz = 0;
+    motor_state = STOP;
   }
 }
 void get_compass_data(float& mx, float &my, float& mz){
