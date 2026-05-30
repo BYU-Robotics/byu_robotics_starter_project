@@ -48,6 +48,10 @@ bool imu_one_active = false;
 bool imu_two_active = false;
 MotorStates motor_state;
 
+// Misc. variables
+unsigned long last_msg_time = 0;
+unsigned long loopTimer = 0;
+
 void setup() {
   Serial.begin(115200);
   mpu_init();
@@ -55,14 +59,17 @@ void setup() {
   filter_init();
   microros_init();
   thruster_init();
+  last_msg_time = millis();
+  loopTimer = micros();
 }
 
 void loop() {
   // publish all sensor data every loop
-  publish_imu_data();
-  rclc_executor_spin_some(&executor, RCL_MS_TO_NS(0));
-  delay(20); // TODO Temporary delay to avoid publishing too much data, should be replaced with a timer in the future
-  // Add timer to check if still reciving messages from ROS2 and if not, stop the boat for safety
+  watchdog_check();
+  if(looptime_check()){ // Publish at 50Hz, which is the output rate of the compass
+    publish_imu_data();
+  }
+  rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1));
 }
 void microros_init(){
   rmw_uros_sync_session(1000); // Synchronize with the micro-ROS agent, with a timeout of 1000 milliseconds (1 second)
@@ -166,6 +173,8 @@ void publish_imu_data(){
 }
 
 void process_twist(const void * msgin){
+  last_msg_time = millis();
+  motor_state = DRIVE;
   const geometry_msgs__msg__Twist * msg = (const geometry_msgs__msg__Twist *)msgin;
   // Process the received Twist message (e.g., control the boat based on cmd_vel)
   
@@ -204,6 +213,19 @@ void process_twist(const void * msgin){
       break;
   }
 }
+void watchdog_check(){
+  // Check if we have received a message from ROS2 in the last 2 seconds, if not, stop the boat for safety
+  if(millis() - last_msg_time > 2000){
+    motor_state = STOP;
+  }
+}
+bool looptime_check(){
+  if(micros() - loopTimer > 20000){ // Publish at 50Hz, which is the output rate of the compass
+    loopTimer += 20000;
+    return true;
+  }
+  return false;
+}
 void get_imu_data(float& ax, float& ay, float& az, float& gx, float& gy, float& gz){
   // Get data from one or two imus
   sensors_event_t a1, g1, temp1;
@@ -222,7 +244,6 @@ void get_imu_data(float& ax, float& ay, float& az, float& gx, float& gy, float& 
     gz = (g1.gyro.z + g2.gyro.z)/2;
   }
   else if(mpu1_ok){
-    mpu1.getEvent(&a1, &g1, &temp1);
     ax = (a1.acceleration.x);
     ay = (a1.acceleration.y);
     az = (a1.acceleration.z);
@@ -232,7 +253,6 @@ void get_imu_data(float& ax, float& ay, float& az, float& gx, float& gy, float& 
     gz = (g1.gyro.z);
   }
   else if(mpu2_ok){
-    mpu2.getEvent(&a2, &g2, &temp2);
     ax = (a2.acceleration.x);
     ay = (a2.acceleration.y);
     az = (a2.acceleration.z);
