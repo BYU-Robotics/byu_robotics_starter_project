@@ -91,7 +91,7 @@ void calculate_bias(){
   gz2 /= 500;
 
   // Output bias values to serial monitor
-  Serial.print("Done! Bias values: \n");
+  Serial.print("Done! Bias values: \n\n");
   Serial.print("IMU 1 Bias - GX: ");
   Serial.print(gx1);
   Serial.print(" GY: ");
@@ -107,5 +107,5 @@ void calculate_bias(){
   Serial.println(gz2);
 
   Serial.println("\nCopy and paste these values into the main program for gyro bias correction.");
-  Serial.println("Press s to run the calibration again if needed.");
+  Serial.println("\nPress s to run the calibration again if needed.\n");
 }
