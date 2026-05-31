@@ -1,5 +1,11 @@
 # Boat Microcontroller Firmware
-
+## Commands to run
+YOU NEED MICROROS INSTALLED ON YOUR COMPUTER SEPERATELY
+```bash
+cd ./microros
+source install/setup.bash
+ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 # change this to the port of your microcontroller if needed
+```
 ## Roadmap
 - [ ] Implement timer system to send messages at fixed rate instead of having a delay
 - [ ] Implement watchdog that checks if heartbeat is recieved from main system
