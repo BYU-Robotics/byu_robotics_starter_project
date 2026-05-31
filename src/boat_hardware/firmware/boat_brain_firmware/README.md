@@ -9,7 +9,9 @@ source install/setup.bash
 ```
 ```bash
 # run this from anywhere
-ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 # change this to the port of your microcontroller if needed
+ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 -b 912600
+# change this to the port of your microcontroller if needed
+# change the baud rate -b <BAUD_RATE> if neccesary
 ```
 ## Roadmap
 ### Future Additions
