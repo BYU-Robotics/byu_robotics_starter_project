@@ -26,8 +26,7 @@ uint8_t RIGHT_THRUSTER_PIN_B = 15;
 // SETTINGS
 int REVERSE_MOTOR_LEFT = 1;
 int REVERSE_MOTOR_RIGHT = 1;
-bool MPU2_ACTIVE = true;
-
+bool GPS_ENABLED = false; // GPS is not implemented yet, but this variable can be used in the future to enable or disable GPS functionality
 // Sensor variables
 Adafruit_MPU6050 mpu1;
 Adafruit_MPU6050 mpu2;
@@ -140,13 +139,22 @@ void publish_imu_data(){
 
   // Get data from sensors
   get_imu_data(ax, ay, az, gx, gy, gz);
-  get_compass_data(mx, my, mz);
+  if(GPS_ENABLED){
+    get_compass_data(mx, my, mz);
+  }
+  
 
   // POSSIBLE CHANGE: Align axis in case they are not aligned with the boat's forward direction
 
   // Fill in the quaternion_msg with data from the IMU and compass
   float qx, qy, qz, qw; // Quaternion data
-  filter.update(gx * RAD_TO_DEG, gy * RAD_TO_DEG, gz * RAD_TO_DEG, ax, ay, az, mx, my, mz); // Update Mahony filter with new data
+  if(GPS_ENABLED){
+    filter.update(gx * RAD_TO_DEG, gy * RAD_TO_DEG, gz * RAD_TO_DEG, ax, ay, az, mx, my, mz); // Update Mahony filter with new data  }
+  }
+  else{
+    filter.updateIMU(gx * RAD_TO_DEG, gy * RAD_TO_DEG, gz * RAD_TO_DEG, ax, ay, az); // Update Mahony filter without compass data
+  }
+  
   filter.getQuaternion(qx, qy, qz, qw);
 
 
