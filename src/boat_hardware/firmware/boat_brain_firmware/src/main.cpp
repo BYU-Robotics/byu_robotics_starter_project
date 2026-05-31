@@ -23,10 +23,21 @@ uint8_t LEFT_THRUSTER_PIN_B = 13;
 uint8_t RIGHT_THRUSTER_PIN_A = 14;
 uint8_t RIGHT_THRUSTER_PIN_B = 15;
 
+// Gyro bias correction values (run calibration program and then copy the values here for better accuracy)
+// Calibrated by Milkfries on May 30, 2026 in Provo, Utah
+float GYRO_BIAS_X_1 = -.04;
+float GYRO_BIAS_Y_1 = -.00;
+float GYRO_BIAS_Z_1 = -.02;
+
+float GYRO_BIAS_X_2 = -.04;
+float GYRO_BIAS_Y_2 = .01;
+float GYRO_BIAS_Z_2 = -.02;
+
 // SETTINGS
 int REVERSE_MOTOR_LEFT = 1;
 int REVERSE_MOTOR_RIGHT = 1;
 bool GPS_ENABLED = false; // GPS is not implemented yet, but this variable can be used in the future to enable or disable GPS functionality
+
 // Sensor variables
 Adafruit_MPU6050 mpu1;
 Adafruit_MPU6050 mpu2;
@@ -52,7 +63,7 @@ unsigned long last_msg_time = 0;
 unsigned long loopTimer = 0;
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(921600);
   mpu_init();
   compass_init();
   filter_init();
@@ -133,6 +144,7 @@ void thruster_init(){
 void publish_imu_data(){
   // Get data from IMU and compass, process it, and fill in the message to be published
   sensor_msgs__msg__Imu quaternion_msg;
+  memset(&quaternion_msg, 0, sizeof(sensor_msgs__msg__Imu));
   float ax, ay, az; // Linear acceleration data
   float gx, gy, gz; // Angular velocity data
   float mx, my, mz; // Magnetic (compass) data
@@ -142,7 +154,6 @@ void publish_imu_data(){
   if(GPS_ENABLED){
     get_compass_data(mx, my, mz);
   }
-  
 
   // POSSIBLE CHANGE: Align axis in case they are not aligned with the boat's forward direction
 
@@ -240,6 +251,15 @@ void get_imu_data(float& ax, float& ay, float& az, float& gx, float& gy, float& 
   sensors_event_t a2, g2, temp2;
   bool mpu1_ok = imu_one_active && mpu1.getEvent(&a1, &g1, &temp1);
   bool mpu2_ok = imu_two_active && mpu2.getEvent(&a2, &g2, &temp2);
+
+  // Apply gyro bias correction
+  g1.gyro.x -= GYRO_BIAS_X_1;
+  g1.gyro.y -= GYRO_BIAS_Y_1;
+  g1.gyro.z -= GYRO_BIAS_Z_1;
+
+  g2.gyro.x -= GYRO_BIAS_X_2;
+  g2.gyro.y -= GYRO_BIAS_Y_2;
+  g2.gyro.z -= GYRO_BIAS_Z_2;
 
   if(mpu1_ok && mpu2_ok){    
     // Averaging two IMUs for more accurate data, if both are active
