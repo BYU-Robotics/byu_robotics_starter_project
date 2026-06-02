@@ -11,7 +11,7 @@ The node acts as a bridge between the physical controller driver and the downstr
     *   Listens to the raw joystick array stream broadcasted by the hardware driver layer.
 
 ### Published Topics
-*   **`cmd_vel`** (`geometry_msgs/msg/Twist`)
+*   **`telop`** (`geometry_msgs/msg/Twist`)
     *   Outputs the calculated target velocities. 
     *   `linear.x`: Forward/Reverse speed (ranges from `-1.0` to `1.0`).
     *   `angular.z`: Turning/Yaw rate (ranges from `-1.0` to `1.0`).
@@ -46,5 +46,5 @@ ros2 launch controller_cpp teleop_launch.py
 ### 3. Verify the Outputs
 To verify that data is translating correctly over the network, open a separate terminal tab and listen to the command stream:
 ```bash
-ros2 topic echo /cmd_vel
+ros2 topic echo /telop
 ```

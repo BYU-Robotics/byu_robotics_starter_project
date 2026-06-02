@@ -23,7 +23,7 @@ class ControllerNode : public rclcpp::Node{
   public:
     ControllerNode():Node("ControllerNode"){
       joy_subscription_ = this->create_subscription<sensor_msgs::msg::Joy>("joy",10,std::bind(&ControllerNode::joy_to_twist,this,std::placeholders::_1)); 
-      twist_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel",10);
+      twist_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("telop",10);
     }
 };
 
