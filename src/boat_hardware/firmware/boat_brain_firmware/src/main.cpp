@@ -5,7 +5,8 @@
 #include <Arduino.h>
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
-#include <QMC5883LCompass.h>
+#include <Adafruit_QMC5883P.h>
+#include <Wire.h>
 #include <MahonyAHRS.h>
 
 #include <micro_ros_platformio.h>
@@ -33,15 +34,18 @@ float GYRO_BIAS_X_2 = -.04;
 float GYRO_BIAS_Y_2 = .01;
 float GYRO_BIAS_Z_2 = -.02;
 
+float MAG_BIAS_X = -0.27;
+float MAG_BIAS_Y = -0.56;
+float MAG_BIAS_Z = -0.30;
+
 // SETTINGS
 int REVERSE_MOTOR_LEFT = 1;
 int REVERSE_MOTOR_RIGHT = 1;
-bool GPS_ENABLED = false; // GPS is not implemented yet, but this variable can be used in the future to enable or disable GPS functionality
 
 // Sensor variables
 Adafruit_MPU6050 mpu1;
 Adafruit_MPU6050 mpu2;
-QMC5883LCompass compass;
+Adafruit_QMC5883P compass;
 Mahony filter;
 
 // ROS2 variables
@@ -56,6 +60,7 @@ geometry_msgs__msg__Twist twist_msg;
 // State variables
 bool imu_one_active = false;
 bool imu_two_active = false;
+bool compass_active = false;
 MotorStates motor_state;
 
 // Misc. variables
@@ -110,10 +115,13 @@ void microros_init(){
     "boat_imu");
 }
 void compass_init(){
-  compass.init();
-  compass.setMode(0x01, 0x04, 0x00, 0x00); // Set mode to continuous, 50Hz data output rate, 2G range, and 512 oversampling for better accuracy
-  // compass.setSmoothing(5, true); // Number 1-10 higher is smoother but more lag, true is for advanced smoothing algorithm that is better for irregular movements (complex calculations), false is a simple moving average
-  // compass.setCalibration( -100, 100, -100, 100, -100, 100); // Set calibration values calculated by the calibrate sketch in the QMC5883LCompass library
+    if(compass.begin(0x2C)){
+        compass_active = true;
+    }
+    compass.setMode(QMC5883P_MODE_CONTINUOUS); // Continuous measuring
+    compass.setODR(QMC5883P_ODR_50HZ); // Output Data Rate = 50 Hz
+    compass.setRange(QMC5883P_RANGE_2G); // Range = +/- 2 Gauss
+    compass.setOSR(QMC5883P_OSR_1); // Over Sample Ratio = 1
 }
 void filter_init(){
   // Initialize Mahony filter with sample frequency of 50Hz, and default values for two other parameters
@@ -151,7 +159,7 @@ void publish_imu_data(){
 
   // Get data from sensors
   get_imu_data(ax, ay, az, gx, gy, gz);
-  if(GPS_ENABLED){
+  if(compass_active){
     get_compass_data(mx, my, mz);
   }
 
@@ -159,8 +167,9 @@ void publish_imu_data(){
 
   // Fill in the quaternion_msg with data from the IMU and compass
   float qx, qy, qz, qw; // Quaternion data
-  if(GPS_ENABLED){
-    filter.update(gx * RAD_TO_DEG, gy * RAD_TO_DEG, gz * RAD_TO_DEG, ax, ay, az, mx, my, mz); // Update Mahony filter with new data  }
+  if(compass_active){
+    // Notice the mx, -my, mz for the compass data. This is because of the orientation of the compass on the boat
+    filter.update(gx * RAD_TO_DEG, gy * RAD_TO_DEG, gz * RAD_TO_DEG, ax, ay, az, mx, -my, mz); // Update Mahony filter with new data  }
   }
   else{
     filter.updateIMU(gx * RAD_TO_DEG, gy * RAD_TO_DEG, gz * RAD_TO_DEG, ax, ay, az); // Update Mahony filter without compass data
@@ -301,9 +310,25 @@ void get_imu_data(float& ax, float& ay, float& az, float& gx, float& gy, float& 
     motor_state = STOP;
   }
 }
-void get_compass_data(float& mx, float &my, float& mz){
-  compass.read();
-  mx = compass.getX();
-  my = compass.getY();
-  mz = compass.getZ();
+
+void get_compass_data(float& mx, float& my, float& mz){
+  // Get data from compass
+  if(compass.getGaussField(&mx, &my, &mz)){
+    mx = mx + MAG_BIAS_X;
+    my = my + MAG_BIAS_Y;
+    mz = mz + MAG_BIAS_Z;
+
+    float mag_norm = sqrt(mx*mx + my*my + mz*mz);
+    if(mag_norm == 0) mag_norm = 1; // Prevent division by zero, if the norm is zero we can just leave the values as they are since they are already zero, and it indicates that the compass is not working properly which will be handled by the filter and main system.
+    mx = mx/mag_norm;
+    my = my/mag_norm;
+    mz = mz/mag_norm;
+  }
+  else{
+    // If compass is not working, send message to main system and stop the boat for safety
+    mx = 0;
+    my = 0;
+    mz = 0;
+    // compass_active = false; // Set compass as inactive so that the filter will stop using compass data and won't give wrong data, and the system can attempt to use the compass again later when it might be working.
+  }
 }
